@@ -1,8 +1,7 @@
 import torch
 from pathlib import Path
+from boundary_transformers import Anchor_BERT_Model
 from train_boundary import train_model
-
-from transformers import RobertaConfig, RobertaForSequenceClassification
 
 torch.manual_seed(2)
 
@@ -27,11 +26,22 @@ DATASET_LENGTHS = (TRAIN_DATASET_LENGTH, VAL_DATASET_LENGTH, TEST_DATASET_LENGTH
 
 POS_ENC_SIZE = 1024
 
+config = {
+    "name": "anchor_model_checkpoint_bert.pt",
+    "batch_size": 2,
+    "epochs": 15,
+    "patience": 4,
+    "verbose": True,
+    "data_config" : {
+        "rnn_len":  2,
+        "argmax": True
+    }
+}
+
+
 if __name__ == "__main__":
-    configuration = RobertaConfig(max_position_embeddings=POS_ENC_SIZE,
-                                  num_hidden_layers=12)
-    model = RobertaForSequenceClassification(configuration)
-    my_cnn, train_accs, val_accs = train_model(model, (train_boundary_templ, train_label_templ), (val_boundary_templ, val_label_templ), DATASET_LENGTHS)
+    model = Anchor_BERT_Model(pos_enc_size=POS_ENC_SIZE)
+    my_cnn, train_accs, val_accs = train_model(model, (train_boundary_templ, train_label_templ), (val_boundary_templ, val_label_templ), DATASET_LENGTHS, config)
 
     torch.save({
         'train_accs': train_accs,

@@ -30,6 +30,8 @@ class AnchorDataset(torch.utils.data.Dataset):
                 
         key = str(idx % self.shard_length)
         region = self.boundaries[key][:]
+
+        # Convert one-hot to token encoding for transformers
         if self.argmax:
             region = region.argmax(dim=1)
         

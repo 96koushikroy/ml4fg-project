@@ -53,27 +53,27 @@ def run_one_epoch(train_flag, dataloader, model, optimizer, device, dataset_size
     return( np.mean(losses), epoch_acc, precision, recall)
 
 
-def train_model(model, train_data, validation_data, dataset_lengths, epochs=15, patience=4, verbose = True):
+def train_model(model, train_data, validation_data, dataset_lengths, config):
     train_length, val_length, test_length = dataset_lengths
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
     model = model.to(device)
 
     batch_size = 64
-    train_dataset = AnchorDataset(train_data[0], train_data[1], 800, train_length)
+    train_dataset = AnchorDataset(train_data[0], train_data[1], length=train_length, **config['data_config'])
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers = 8, shuffle=True)
     
-    val_dataset = AnchorDataset(validation_data[0], validation_data[1], 800, val_length)
+    val_dataset = AnchorDataset(validation_data[0], validation_data[1], length=val_length, **config['data_config'])
     val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers = 8)
 
     optimizer = torch.optim.RMSprop(model.parameters())
     
     train_accs = []
     val_accs = []
-    patience_counter = patience
+    patience_counter = config['patience']
     best_val_loss = np.inf
     check_point_filename = 'anchor_model_checkpoint_cnn_lstm.pt' # to save the best model fit to date
-    for epoch in range(epochs):
+    for epoch in range(config['epochs']):
         start_time = timeit.default_timer()
         
         train_loss, train_acc, train_pr, train_rec = run_one_epoch(True, train_dataloader, model, optimizer, device, math.ceil(len(train_dataset)/batch_size), epoch)
@@ -85,7 +85,7 @@ def train_model(model, train_data, validation_data, dataset_lengths, epochs=15, 
         if val_loss < best_val_loss: 
             torch.save(model.state_dict(), check_point_filename)
             best_val_loss = val_loss
-            patience_counter = patience
+            patience_counter = config['patience']
         else: 
             patience_counter -= 1
             if patience_counter <= 0: 
@@ -93,7 +93,7 @@ def train_model(model, train_data, validation_data, dataset_lengths, epochs=15, 
                 break
         elapsed = float(timeit.default_timer() - start_time)
         
-        if verbose == True:
+        if config['verbose'] == True:
             train_auprc = sklearn.metrics.auc(train_rec, train_pr)
             val_auprc = sklearn.metrics.auc(val_rec, val_pr)
             print("Epoch %i took %.2fs. Train loss: %.4f acc: %.4f. auprc: %.4f. Val loss: %.4f acc: %.4f. auprc: %.4f. Patience left: %i" % 

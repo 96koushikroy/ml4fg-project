@@ -22,15 +22,21 @@ test_label_templ = str(BOUNDARY_ROOT / "label_boundary_test" / "label_boundary_t
 TRAIN_DATASET_LENGTH = 150104
 VAL_DATASET_LENGTH  = 5920
 TEST_DATASET_LENGTH = 23744
-
 DATASET_LENGTHS = (TRAIN_DATASET_LENGTH, VAL_DATASET_LENGTH, TEST_DATASET_LENGTH)
+
+config = {
+    "name": "anchor_model_checkpoint_cnn.pt",
+    "batch_size": 64,
+    "epochs": 15,
+    "patience": 4,
+    "verbose": True,
+    "data_config" : {
+        "rnn_len":  2,
+        "argmax": True
+    }
+}
+
 
 if __name__ == "__main__":
     my_cnn = Anchor_CNN_LSTM(use_cnn=True, use_lstm=False)
-    my_cnn, train_accs, val_accs = train_model(my_cnn, (train_boundary_templ, train_label_templ), (val_boundary_templ, val_label_templ), DATASET_LENGTHS)
-
-    torch.save({
-        'train_accs': train_accs,
-        'val_accs': val_accs,
-        'state_dict': my_cnn.state_dict()
-    }, "deepmilo_boundary_cnn.pt")
+    my_cnn, train_accs, val_accs = train_model(my_cnn, (train_boundary_templ, train_label_templ), (val_boundary_templ, val_label_templ), DATASET_LENGTHS, config)
