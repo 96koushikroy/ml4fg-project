@@ -33,7 +33,7 @@ class AnchorDataset(torch.utils.data.Dataset):
 
         # Convert one-hot to token encoding for transformers
         if self.argmax:
-            region = region.argmax(dim=1)
+            region = region.argmax(axis=1)
         
         trunc = (len(region) - self.rnn_len) // 2
         rnn_region = region[trunc:-trunc]

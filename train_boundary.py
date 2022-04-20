@@ -24,8 +24,9 @@ def run_one_epoch(train_flag, dataloader, model, optimizer, device, dataset_size
         for idx, (x_cnn, x_rnn, y) in tepoch: #tqdm.tqdm(enumerate(dataloader), total=dataset_size): # collection of tuples with iterator
             tepoch.set_description(f"Epoch {epoch+1}")
             (x_cnn, x_rnn, y) = ( x_cnn.type(torch.FloatTensor).to(device), x_rnn.type(torch.FloatTensor).to(device), y.type(torch.FloatTensor).to(device) ) # transfer data to GPU
+            (x_cnn, y) = ( x_cnn.type(torch.FloatTensor).to(device), y.type(torch.FloatTensor).to(device) ) # transfer data to GPU
 
-            output = model(x_cnn, x_rnn) # forward pass
+            output = model(x_cnn) # forward pass
             output = output.squeeze() # remove spurious channel dimension
             loss = F.binary_cross_entropy( output, y ) # numerically stable
 
@@ -59,14 +60,14 @@ def train_model(model, train_data, validation_data, dataset_lengths, config):
     print(f"Device: {device}")
     model = model.to(device)
 
-    batch_size = 64
+    batch_size = config['batch_size']
     train_dataset = AnchorDataset(train_data[0], train_data[1], length=train_length, **config['data_config'])
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers = 8, shuffle=True)
     
     val_dataset = AnchorDataset(validation_data[0], validation_data[1], length=val_length, **config['data_config'])
     val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers = 8)
 
-    optimizer = torch.optim.RMSprop(model.parameters())
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=config['lr'])
     
     train_accs = []
     val_accs = []
@@ -83,7 +84,13 @@ def train_model(model, train_data, validation_data, dataset_lengths, config):
         val_accs.append(val_acc)
         
         if val_loss < best_val_loss: 
-            torch.save(model.state_dict(), check_point_filename)
+            torch.save(
+                {
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                }, check_point_filename
+            )
             best_val_loss = val_loss
             patience_counter = config['patience']
         else: 

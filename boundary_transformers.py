@@ -3,16 +3,16 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 
-from transformers import BertConfig, BertForMaskedLM
+from transformers import BertConfig, BertForMaskedLM, BertForSequenceClassification
 
 
 class Anchor_BERT_Model(nn.Module):
-    def __init__(self, conv_out=256, pos_enc_size=1024, dropout=0.2):
+    def __init__(self, conv_out=64, pos_enc_size=1024, dropout=0.2, hidden_size=512, hidden_layers=12):
         super().__init__()
         self.seq_len = 4000
         
         self.conv1 = nn.Sequential(
-                        nn.Conv1d(in_channels=1, out_channels=conv_out, kernel_size=20, padding='same'),
+                        nn.Conv1d(in_channels=5, out_channels=conv_out, kernel_size=19, padding='same'),
                         nn.BatchNorm1d(conv_out),
                         nn.LeakyReLU(0.2),
                         nn.MaxPool1d(2),
@@ -20,31 +20,43 @@ class Anchor_BERT_Model(nn.Module):
                     )
 
         self.conv2 = nn.Sequential(
-                        nn.Conv1d(in_channels=conv_out, out_channels=conv_out, kernel_size=10, padding='same'),
+                        nn.Conv1d(in_channels=conv_out, out_channels=conv_out, kernel_size=9, padding='same'),
                         nn.BatchNorm1d(conv_out),
                         nn.LeakyReLU(0.2),
                         nn.MaxPool1d(2),
                         nn.Dropout2d(dropout),
                     )
+
+        self.conv3 = nn.Sequential(
+                        nn.Conv1d(in_channels=conv_out, out_channels=conv_out, kernel_size=9, padding='same'),
+                        nn.BatchNorm1d(conv_out),
+                        nn.LeakyReLU(0.2),
+                        nn.MaxPool1d(2),
+                        nn.Dropout2d(dropout),
+                    )
+
+        self.conv_block = nn.Sequential(self.conv1, self.conv2, self.conv3)
         
         self.transition = nn.Sequential(
-            nn.Linear(conv_out, 1),
+            nn.Linear(conv_out, hidden_size),
             nn.LeakyReLU(0.2)
         )
 
         configuration = BertConfig(max_position_embeddings=pos_enc_size,
-                                      num_hidden_layers=12,
-                                      num_labels=2)
-        self.transformer = BertForMaskedLM(configuration)
+                                   hidden_size=hidden_size,
+                                   num_attention_heads=hidden_size//64,
+                                   num_hidden_layers=hidden_layers,
+                                   num_labels=2)
+        self.transformer =  BertForSequenceClassification(configuration)
         
     def forward(self, x):
-        x = x.unsqueeze(1) #[*, 1, 4k, 5]
         batch_size = x.shape[0]
-        x = self.conv1(x)
-        x = self.conv2(x)
+        x = x.view(batch_size, x.shape[2], -1)
+        x = self.conv_block(x)
+        x = x.view(batch_size, x.shape[2], -1)
         x = self.transition(x)
-        logits = self.transformer(input_ids=x).logits
-        predicted_class_id = logits.argmax(dim=1)
+        logits = self.transformer(inputs_embeds=x).logits
+        predicted_class_id = logits.softmax(dim=1)[:, 1]
         return predicted_class_id.view(batch_size, -1)
 
 

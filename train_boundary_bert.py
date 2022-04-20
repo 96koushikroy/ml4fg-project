@@ -24,27 +24,28 @@ VAL_DATASET_LENGTH  = 5920
 TEST_DATASET_LENGTH = 23744
 DATASET_LENGTHS = (TRAIN_DATASET_LENGTH, VAL_DATASET_LENGTH, TEST_DATASET_LENGTH)
 
-POS_ENC_SIZE = 1024
+POS_ENC_SIZE = 512
 
 config = {
     "name": "anchor_model_checkpoint_bert.pt",
-    "batch_size": 2,
+    "batch_size": 8,
+    "lr": 1e-3,
     "epochs": 15,
     "patience": 4,
     "verbose": True,
     "data_config" : {
         "rnn_len":  2,
-        "argmax": True
+        "argmax": False
     }
 }
 
 
 if __name__ == "__main__":
-    model = Anchor_BERT_Model(pos_enc_size=POS_ENC_SIZE)
-    my_cnn, train_accs, val_accs = train_model(model, (train_boundary_templ, train_label_templ), (val_boundary_templ, val_label_templ), DATASET_LENGTHS, config)
+    model = Anchor_BERT_Model(pos_enc_size=POS_ENC_SIZE, hidden_size=512, hidden_layers=8)
+    model, train_accs, val_accs = train_model(model, (train_boundary_templ, train_label_templ), (val_boundary_templ, val_label_templ), DATASET_LENGTHS, config)
 
     torch.save({
         'train_accs': train_accs,
         'val_accs': val_accs,
-        'state_dict': my_cnn.state_dict()
-    }, "deepmilo_boundary_cnn_lstm.pt")
+        'model_state_dict': model.state_dict(),
+    }, "deepmilo_boundary_bert.pt")
