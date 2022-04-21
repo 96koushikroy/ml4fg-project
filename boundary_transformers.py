@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.utils.data
 
-from transformers import BertConfig, BertForMaskedLM, BertForSequenceClassification
+from transformers import AutoTokenizer, BertConfig, BertForMaskedLM, BertForPreTraining, BertForSequenceClassification
 
 
 class Anchor_BERT_Model(nn.Module):
@@ -38,8 +38,7 @@ class Anchor_BERT_Model(nn.Module):
         self.conv_block = nn.Sequential(self.conv1, self.conv2, self.conv3)
         
         self.transition = nn.Sequential(
-            nn.Linear(conv_out, hidden_size),
-            nn.LeakyReLU(0.2)
+            nn.Linear(conv_out, hidden_size)
         )
 
         configuration = BertConfig(max_position_embeddings=pos_enc_size,
@@ -63,39 +62,52 @@ class Anchor_BERT_Model(nn.Module):
 class Anchor_BERTXL_Model(nn.Module):
     def __init__(self, pretrained_name=None, freeze_layers=0):
         super().__init__()
-        self.seq_len = 4000
+        self.seq_len = 4096
         self.freeze_layers = freeze_layers
         if pretrained_name:
-            self.transformer = BertForMaskedLM.from_pretrained(pretrained_name)
+            self.transformer = BertForPreTraining.from_pretrained(pretrained_name, output_hidden_states=True)
         else:
             config = BertConfig(max_position_embeddings=512,
-                                num_hidden_layers=12)
-            self.transformer = BertForMaskedLM(config)
+                                num_hidden_layers=12,
+                                num_labels=2)
+            self.transformer = BertForPreTraining(config)
 
         # Freeze first few layers of the transformer
         for name, param in self.transformer.named_parameters():
             layer_num = re.search('\d+', name)
-            if layer_num is not None and layer_num < self.freeze_layers:
+            layer_num = int(layer_num[0]) if layer_num is not None else 1e4
+            if 'bert.embeddings' in name or layer_num <= self.freeze_layers:
                 param.requires_grad = False
 
-        self.num_chunks = self.seq_len // self.transformer.config['max_position_embeddings']
+        self.num_chunks = self.seq_len // self.transformer.config.max_position_embeddings
+
+        self.transition = nn.Sequential(
+            nn.Linear(self.transformer.config.hidden_size, 1)
+        )
 
         self.head = nn.Sequential(
             nn.Linear(self.seq_len, self.seq_len),
             nn.LeakyReLU(0.2),
-            nn.Linear(self.seq_len, 1),
+            nn.Linear(self.seq_len, 2),
         )
         
     def forward(self, x):
-        batch_size = x.shape[0]
-        x_chunks = x.split(self.num_chunks, dim=1)
+        batch_size = x['input_ids'].shape[0]
+        input_id_chunks = x['input_ids'].tensor_split(self.num_chunks, dim=1)
+        token_type_id_chunks = x['token_type_ids'].tensor_split(self.num_chunks, dim=1)
+        attention_mask_chunks = x['attention_mask'].tensor_split(self.num_chunks, dim=1)
 
         output_chunks = []
-        for chunk in x_chunks:
-            logits = self.transformer(input_ids=chunk).logits
-            output_chunks.append(logits)
+        for chunk in range(self.num_chunks):
+            transformer_output = self.transformer(input_ids=input_id_chunks[chunk],
+                                      token_type_ids=token_type_id_chunks[chunk],
+                                      attention_mask=attention_mask_chunks[chunk])
+            trans_out = self.transition(transformer_output.hidden_states[-1]).squeeze()
+            # print(len(transformer_output.hidden_states))
+            # predicted_class_prob = logits.softmax(dim=1)[:, 1]
+            output_chunks.append(trans_out)
         
         output = torch.cat(output_chunks, dim=1)
 
-        pred = self.head(output)
+        pred = self.head(output).softmax(dim=1)[:, 1]
         return pred.view(batch_size, -1)

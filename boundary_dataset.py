@@ -1,6 +1,10 @@
 import torch
 import torch.utils.data
 import h5py
+import numpy as np
+
+LETTERTOINDEX = {'A': 0, 'C': 1, 'G': 2, 'T':3, 'N':4}
+INDEXTOLETTER = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: 'N'}
 
 class AnchorDataset(torch.utils.data.Dataset):
 
@@ -34,6 +38,7 @@ class AnchorDataset(torch.utils.data.Dataset):
         # Convert one-hot to token encoding for transformers
         if self.argmax:
             region = region.argmax(axis=1)
+            region = "".join(np.vectorize(INDEXTOLETTER.get)(region))
         
         trunc = (len(region) - self.rnn_len) // 2
         rnn_region = region[trunc:-trunc]
@@ -49,3 +54,13 @@ class AnchorDataset(torch.utils.data.Dataset):
             self.boundaries.close()
         if hasattr(self, 'labels') and self.labels is not None:
             self.labels.close()
+
+class AnchorCollate:
+
+    def __init__(self, tokenizer):
+        self.tokenizer = tokenizer
+    
+    def __call__(self, inp):
+        region, rnn_region, label = [x[0] for x in inp], [x[1] for x in inp], [x[2] for x in inp]
+        tokens = self.tokenizer(region, padding="max_length", truncation=True, return_tensors='pt')
+        return tokens, torch.Tensor([0]), torch.Tensor(label)

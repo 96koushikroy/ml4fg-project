@@ -7,7 +7,7 @@ from tqdm import tqdm
 import sklearn.metrics
 import math
 
-from boundary_dataset import AnchorDataset
+from boundary_dataset import AnchorDataset, AnchorCollate
 
 torch.manual_seed(2)
 
@@ -23,8 +23,13 @@ def run_one_epoch(train_flag, dataloader, model, optimizer, device, dataset_size
     with tqdm(enumerate(dataloader), total=(dataset_size), unit="batch") as tepoch:
         for idx, (x_cnn, x_rnn, y) in tepoch: #tqdm.tqdm(enumerate(dataloader), total=dataset_size): # collection of tuples with iterator
             tepoch.set_description(f"Epoch {epoch+1}")
-            (x_cnn, x_rnn, y) = ( x_cnn.type(torch.FloatTensor).to(device), x_rnn.type(torch.FloatTensor).to(device), y.type(torch.FloatTensor).to(device) ) # transfer data to GPU
-            (x_cnn, y) = ( x_cnn.type(torch.FloatTensor).to(device), y.type(torch.FloatTensor).to(device) ) # transfer data to GPU
+            if isinstance(x_cnn, torch.Tensor):
+                (x_cnn, x_rnn, y) = ( x_cnn.type(torch.FloatTensor).to(device), x_rnn.type(torch.FloatTensor).to(device), y.type(torch.FloatTensor).to(device) ) # transfer data to GPU
+            else:
+                x_cnn['input_ids'] = x_cnn['input_ids'].to(device)
+                x_cnn['token_type_ids'] = x_cnn['token_type_ids'].to(device)
+                x_cnn['attention_mask'] = x_cnn['attention_mask'].to(device)
+                y = y.type(torch.FloatTensor).to(device)
 
             output = model(x_cnn) # forward pass
             output = output.squeeze() # remove spurious channel dimension
@@ -60,12 +65,14 @@ def train_model(model, train_data, validation_data, dataset_lengths, config):
     print(f"Device: {device}")
     model = model.to(device)
 
+    collate = AnchorCollate(config['tokenizer']) if config.get('tokenizer') else None
+
     batch_size = config['batch_size']
     train_dataset = AnchorDataset(train_data[0], train_data[1], length=train_length, **config['data_config'])
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers = 8, shuffle=True)
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers = 8, collate_fn=collate, shuffle=True)
     
     val_dataset = AnchorDataset(validation_data[0], validation_data[1], length=val_length, **config['data_config'])
-    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers = 8)
+    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers = 8, collate_fn=collate)
 
     optimizer = torch.optim.RMSprop(model.parameters(), lr=config['lr'])
     
