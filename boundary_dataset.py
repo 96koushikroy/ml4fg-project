@@ -20,9 +20,11 @@ class AnchorDataset(torch.utils.data.Dataset):
         return self.length
     
     def open_hdf5(self):
-        wid = torch.utils.data.get_worker_info().id
-        boundary_file = self.boundary_file_templ.format(wid)
-        label_file = self.label_file_templ.format(wid)
+        # wid = torch.utils.data.get_worker_info().id
+        # boundary_file = self.boundary_file_templ.format(wid)
+        # label_file = self.label_file_templ.format(wid)
+        boundary_file = self.boundary_file_templ
+        label_file = self.label_file_templ
         
         self.boundaries = h5py.File(boundary_file, 'r')
         self.labels = h5py.File(label_file, 'r') if self.label_file_templ is not None else None
@@ -38,7 +40,7 @@ class AnchorDataset(torch.utils.data.Dataset):
         # Convert one-hot to token encoding for transformers
         if self.argmax:
             region = region.argmax(axis=1)
-            region = "".join(np.vectorize(INDEXTOLETTER.get)(region))
+            # region = "".join(np.vectorize(INDEXTOLETTER.get)(region))
         
         trunc = (len(region) - self.rnn_len) // 2
         rnn_region = region[trunc:-trunc]
