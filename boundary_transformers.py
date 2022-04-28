@@ -105,7 +105,7 @@ class Anchor_BERTXL_Model(nn.Module):
         self.num_layers = num_layers
         self.freeze_layers = freeze_layers
         if pretrained_name:
-            self.transformer = BertModel.from_pretrained(pretrained_name, output_hidden_states=True, num_hidden_layers=self.num_layers)
+            self.transformer = BertModel.from_pretrained(pretrained_name, output_hidden_states=True) #num_hidden_layers=self.num_layers
         else:
             config = BertConfig(max_position_embeddings=512,
                                 num_hidden_layers=12,
@@ -130,11 +130,11 @@ class Anchor_BERTXL_Model(nn.Module):
         
         # self.transformer.config.max_position_embeddings: 512
         self.head = nn.Sequential(
-            nn.Linear(self.transformer.config.max_position_embeddings, self.transformer.config.max_position_embeddings),
+            nn.Linear(2048, 2048),
             nn.MaxPool1d(2),
-            nn.Linear(self.seq_len * 2, self.seq_len),
+            nn.Linear(1024, 512),
             nn.LeakyReLU(0.2),
-            nn.Linear(self.transformer.config.max_position_embeddings, 2),
+            nn.Linear(512, 2),
         )
         
     def forward(self, x):
@@ -152,9 +152,8 @@ class Anchor_BERTXL_Model(nn.Module):
             # print(len(transformer_output.hidden_states))
             # predicted_class_prob = logits.softmax(dim=1)[:, 1]
             output_chunks.append(trans_out)
-
+        
         output = torch.cat(output_chunks, dim=1).view(batch_size, -1)
-        print(output.shape)
         pred = self.head(output).softmax(dim=1)[:, 1]
         return pred.view(batch_size, -1)
 

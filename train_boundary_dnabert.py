@@ -40,7 +40,7 @@ DATASET_LENGTHS = (TRAIN_DATASET_LENGTH, VAL_DATASET_LENGTH, TEST_DATASET_LENGTH
 
 config = {
     "name": "anchor_model_checkpoint_dnabert_newlr.pt",
-    "batch_size": 64,
+    "batch_size": 16,
     "lr": 3e-4,
     "epochs": 15,
     "patience": 10,
@@ -51,7 +51,7 @@ config = {
         "argmax": True
     },
     "train": {
-        "cast": 'float',
+        "cast": '',
         "use_rnn": False
     }
 }
