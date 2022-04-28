@@ -130,12 +130,9 @@ class Anchor_BERTXL_Model(nn.Module):
         
         # self.transformer.config.max_position_embeddings: 512
         self.head = nn.Sequential(
-<<<<<<< HEAD
             nn.Linear(self.transformer.config.max_position_embeddings, self.transformer.config.max_position_embeddings),
-=======
             nn.MaxPool1d(2),
             nn.Linear(self.seq_len * 2, self.seq_len),
->>>>>>> d22fbc32d4390f1ac242b0792f085349c550b8a8
             nn.LeakyReLU(0.2),
             nn.Linear(self.transformer.config.max_position_embeddings, 2),
         )
@@ -155,13 +152,9 @@ class Anchor_BERTXL_Model(nn.Module):
             # print(len(transformer_output.hidden_states))
             # predicted_class_prob = logits.softmax(dim=1)[:, 1]
             output_chunks.append(trans_out)
-        
-<<<<<<< HEAD
-        output = torch.cat(output_chunks, dim=1) # [*, 512]
-=======
-        output = torch.cat(output_chunks, dim=1).view(batch_size, -1)
 
->>>>>>> d22fbc32d4390f1ac242b0792f085349c550b8a8
+        output = torch.cat(output_chunks, dim=1).view(batch_size, -1)
+        print(output.shape)
         pred = self.head(output).softmax(dim=1)[:, 1]
         return pred.view(batch_size, -1)
 

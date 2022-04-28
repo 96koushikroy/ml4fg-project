@@ -7,7 +7,7 @@ from tqdm import tqdm
 import sklearn.metrics
 import math
 
-from boundary_dataset import AnchorDataset, AnchorCollate, AnchorDatasetOverfit, AnchorDatasetOverfit2
+from boundary_dataset import AnchorDataset, AnchorCollate#, AnchorDatasetOverfit, AnchorDatasetOverfit2
 
 torch.manual_seed(2)
 
@@ -87,11 +87,7 @@ def train_model(model, train_data, validation_data, dataset_lengths, config):
     val_accs = []
     patience_counter = config['patience']
     best_val_loss = np.inf
-<<<<<<< HEAD
-    check_point_filename = config['name']#'anchor_model_checkpoint_cnn_lstm.pt' # to save the best model fit to date
-=======
     check_point_filename = config['name'] # to save the best model fit to date
->>>>>>> d22fbc32d4390f1ac242b0792f085349c550b8a8
     for epoch in range(config['epochs']):
         start_time = timeit.default_timer()
         
