@@ -79,16 +79,18 @@ class Anchor_BERTXL_Model(nn.Module):
             if 'bert.embeddings' in name or layer_num <= self.freeze_layers:
                 param.requires_grad = False
 
+
         self.num_chunks = self.seq_len // self.transformer.config.max_position_embeddings
 
         self.transition = nn.Sequential(
             nn.Linear(self.transformer.config.hidden_size, 1)
         )
-
+        
+        # self.transformer.config.max_position_embeddings: 512
         self.head = nn.Sequential(
-            nn.Linear(self.seq_len, self.seq_len),
+            nn.Linear(self.transformer.config.max_position_embeddings, self.transformer.config.max_position_embeddings),
             nn.LeakyReLU(0.2),
-            nn.Linear(self.seq_len, 2),
+            nn.Linear(self.transformer.config.max_position_embeddings, 2),
         )
         
     def forward(self, x):
@@ -107,7 +109,6 @@ class Anchor_BERTXL_Model(nn.Module):
             # predicted_class_prob = logits.softmax(dim=1)[:, 1]
             output_chunks.append(trans_out)
         
-        output = torch.cat(output_chunks, dim=1)
-
+        output = torch.cat(output_chunks, dim=1) # [*, 512]
         pred = self.head(output).softmax(dim=1)[:, 1]
         return pred.view(batch_size, -1)

@@ -74,13 +74,13 @@ def train_model(model, train_data, validation_data, dataset_lengths, config):
     val_dataset = AnchorDataset(validation_data[0], validation_data[1], length=val_length, **config['data_config'])
     val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers = 8, collate_fn=collate)
 
-    optimizer = torch.optim.RMSprop(model.parameters(), lr=config['lr'])
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config['lr'])
     
     train_accs = []
     val_accs = []
     patience_counter = config['patience']
     best_val_loss = np.inf
-    check_point_filename = 'anchor_model_checkpoint_cnn_lstm.pt' # to save the best model fit to date
+    check_point_filename = config['name']#'anchor_model_checkpoint_cnn_lstm.pt' # to save the best model fit to date
     for epoch in range(config['epochs']):
         start_time = timeit.default_timer()
         
