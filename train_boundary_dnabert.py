@@ -38,12 +38,16 @@ VAL_DATASET_LENGTH  = 5920
 TEST_DATASET_LENGTH = 23744
 DATASET_LENGTHS = (TRAIN_DATASET_LENGTH, VAL_DATASET_LENGTH, TEST_DATASET_LENGTH)
 
-POS_ENC_SIZE = 512
-
 config = {
+<<<<<<< HEAD
     "name": "anchor_model_checkpoint_dnabert_newlr.pt",
     "batch_size": 64,
     "lr": 3e-5,
+=======
+    "name": "anchor_model_checkpoint_bert.pt",
+    "batch_size": 8,
+    "lr": 1e-4,
+>>>>>>> d22fbc32d4390f1ac242b0792f085349c550b8a8
     "epochs": 15,
     "patience": 10,
     "verbose": True,
@@ -54,9 +58,14 @@ config = {
     }
 }
 
+POS_ENC_SIZE = 512
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     model = Anchor_BERTXL_Model(pretrained_name="armheb/DNA_bert_6", freeze_layers=7)
+=======
+    model = Anchor_BERTXL_Model(pretrained_name="../DNA_bert_6", num_layers=6, freeze_layers=6)
+>>>>>>> d22fbc32d4390f1ac242b0792f085349c550b8a8
     model, train_accs, val_accs = train_model(model, (train_boundary_templ, train_label_templ), (val_boundary_templ, val_label_templ), DATASET_LENGTHS, config)
 
     torch.save({
