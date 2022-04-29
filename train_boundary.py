@@ -7,7 +7,9 @@ from tqdm import tqdm
 import sklearn.metrics
 import math
 
-from boundary_dataset import AnchorDataset, AnchorCollate#, AnchorDatasetOverfit, AnchorDatasetOverfit2
+
+from torch.optim.lr_scheduler import ChainedScheduler, LinearLR, ExponentialLR
+from boundary_dataset import AnchorDataset, AnchorCollate
 
 torch.manual_seed(2)
 
@@ -82,6 +84,10 @@ def train_model(model, train_data, validation_data, dataset_lengths, config):
     val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers = 0, collate_fn=collate)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=config['lr'])
+
+    # warmup_lr = LinearLR(optimizer, start_factor=0.1, total_iters=2)
+    # decay_lr = ExponentialLR(optimizer, gamma=0.8)
+    # scheduler = ChainedScheduler([warmup_lr, decay_lr])
     
     train_accs = []
     val_accs = []
@@ -93,6 +99,7 @@ def train_model(model, train_data, validation_data, dataset_lengths, config):
         
         train_loss, train_acc, train_pr, train_rec = run_one_epoch(True, train_dataloader, model, optimizer, device, math.ceil(len(train_dataset)/batch_size), epoch, config['train'])
         val_loss, val_acc, val_pr, val_rec = run_one_epoch(False, val_dataloader, model, optimizer, device, math.ceil(len(val_dataset)/batch_size), epoch, config['train'])
+        # scheduler.step()
         
         train_accs.append(train_acc)
         val_accs.append(val_acc)

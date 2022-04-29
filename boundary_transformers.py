@@ -104,7 +104,7 @@ class Anchor_BERTXL_Model(nn.Module):
         self.seq_len = 4096
         self.num_layers = num_layers
         self.freeze_layers = freeze_layers
-        if pretrained_name:
+        if pretrained_name is not None:
             self.transformer = BertModel.from_pretrained(pretrained_name, output_hidden_states=True) #num_hidden_layers=self.num_layers
         else:
             config = BertConfig(max_position_embeddings=512,
@@ -130,8 +130,8 @@ class Anchor_BERTXL_Model(nn.Module):
         
         # self.transformer.config.max_position_embeddings: 512
         self.head = nn.Sequential(
-            nn.Linear(2048, 2048),
-            nn.MaxPool1d(2),
+            nn.Linear(2048, 1024),
+            nn.BatchNorm1d(1024),
             nn.Linear(1024, 512),
             nn.LeakyReLU(0.2),
             nn.Linear(512, 2),
@@ -143,14 +143,20 @@ class Anchor_BERTXL_Model(nn.Module):
         token_type_id_chunks = x['token_type_ids'].tensor_split(self.num_chunks, dim=1)
         attention_mask_chunks = x['attention_mask'].tensor_split(self.num_chunks, dim=1)
 
+        # seps = 3*torch.ones(batch_size, 1, dtype=torch.long, device=torch.device('cuda'))
+
         output_chunks = []
         for chunk in range(self.num_chunks):
-            transformer_output = self.transformer(input_ids=input_id_chunks[chunk],
-                                      token_type_ids=token_type_id_chunks[chunk],
-                                      attention_mask=attention_mask_chunks[chunk])
+            # Hack to add a [SEP] token to the end of each input
+            # input_ids = torch.cat((input_id_chunks[chunk], seps), 1)
+            # token_type_ids = torch.cat((token_type_id_chunks[chunk], seps), 1)
+            # attention_masks = torch.cat((attention_mask_chunks[chunk], seps), 1)
+            input_ids, token_type_ids, attention_masks = input_id_chunks[chunk], token_type_id_chunks[chunk], attention_mask_chunks[chunk]
+            transformer_output = self.transformer(input_ids=input_ids,
+                                      token_type_ids=token_type_ids,
+                                      attention_mask=attention_masks)
             trans_out = self.transition(transformer_output.hidden_states[-1]).squeeze()
             # print(len(transformer_output.hidden_states))
-            # predicted_class_prob = logits.softmax(dim=1)[:, 1]
             output_chunks.append(trans_out)
         
         output = torch.cat(output_chunks, dim=1).view(batch_size, -1)

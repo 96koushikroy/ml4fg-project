@@ -8,13 +8,15 @@ INDEXTOLETTER = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: 'N'}
 
 class AnchorDataset(torch.utils.data.Dataset):
 
-    def __init__(self, boundary_file_templ, label_file_templ, rnn_len, length, argmax=False):
+    def __init__(self, boundary_file_templ, label_file_templ, rnn_len, length, argmax=False, decode_bp=False, kmer=1):
         super().__init__()
         self.rnn_len = rnn_len
         self.boundary_file_templ = boundary_file_templ
         self.label_file_templ = label_file_templ
         self.length = length
         self.argmax = argmax
+        self.decode_bp = decode_bp
+        self.kmer = kmer
         
     def __len__(self):
         return self.length
@@ -40,8 +42,11 @@ class AnchorDataset(torch.utils.data.Dataset):
         # Convert one-hot to token encoding for transformers
         if self.argmax:
             region = region.argmax(axis=1)
-            region = "".join(np.vectorize(INDEXTOLETTER.get)(region))
-        
+            if self.decode_bp:
+                bps = "".join(np.vectorize(INDEXTOLETTER.get)(region))
+                kmers = [bps[x:x+self.kmer] for x in range(len(bps)+1-self.kmer)]
+                region = " ".join(kmers)
+                
         trunc = (len(region) - self.rnn_len) // 2
         rnn_region = region[trunc:-trunc]
         
@@ -64,5 +69,5 @@ class AnchorCollate:
     
     def __call__(self, inp):
         region, rnn_region, label = [x[0] for x in inp], [x[1] for x in inp], [x[2] for x in inp]
-        tokens = self.tokenizer(region, padding="max_length", truncation=True, return_tensors='pt')
+        tokens = self.tokenizer(region, padding="max_length", return_tensors='pt')
         return tokens, torch.Tensor([0]), torch.Tensor(label)
