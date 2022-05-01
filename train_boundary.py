@@ -83,7 +83,8 @@ def train_model(model, train_data, validation_data, dataset_lengths, config):
     val_dataset = AnchorDataset(validation_data[0], validation_data[1], length=val_length, **config['data_config'])
     val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, num_workers = 0, collate_fn=collate)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config['lr'])
+#     optimizer = torch.optim.AdamW(model.parameters(), lr=config['lr'])
+    optimizer = torch.optim.RMSprop(model.parameters())
 
     # warmup_lr = LinearLR(optimizer, start_factor=0.1, total_iters=2)
     # decay_lr = ExponentialLR(optimizer, gamma=0.8)

@@ -3,7 +3,7 @@ import sklearn
 import torch
 from pathlib import Path
 
-from boundary_transformers import Anchor_Enformer_Model
+from boundary_models import Anchor_CNN_LSTM
 from boundary_dataset import AnchorDataset, AnchorCollate
 from train_boundary import run_one_epoch
 
@@ -20,21 +20,21 @@ test_dataset_lengths = {
 }
 
 data_config = {
-        "rnn_len":  2,
-        "argmax": True
+        "rnn_len":  800,
+        "argmax": False
     }
 
 test_config = {
-        "cast": 'long',
-        "use_rnn": False
+        "cast": 'float',
+        "use_rnn": True
     }
 
-batch_size = 2
+batch_size = 128
 
 if __name__ == "__main__":
     # model = Anchor_Enformer_Model(dim=192, depth=4, target_length=32, num_downsamples=3)
-    model = Anchor_Enformer_Model(dim=384, depth=8, target_length=64, num_downsamples=3)
-    model.load_state_dict(torch.load('anchor_model_checkpoint_enformer_3.pt')['model_state_dict'])
+    model = Anchor_CNN_LSTM(use_cnn=True, use_lstm=False)
+    model.load_state_dict(torch.load('anchor_model_checkpoint_cnn_newdata.pt')['model_state_dict'])
     model = model.to(device)
     model.eval()
 

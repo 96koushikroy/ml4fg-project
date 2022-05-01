@@ -130,7 +130,7 @@ class Anchor_BERTXL_Model(nn.Module):
         
         # self.transformer.config.max_position_embeddings: 512
         self.head = nn.Sequential(
-            nn.Linear(2048, 1024),
+            nn.Linear(16000, 1024),
             nn.BatchNorm1d(1024),
             nn.Linear(1024, 512),
             nn.LeakyReLU(0.2),
