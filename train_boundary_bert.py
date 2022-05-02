@@ -1,7 +1,7 @@
 import torch
 from pathlib import Path
 from boundary_transformers import Anchor_BERT_Model, Anchor_BERT_Model_2
-from train_boundary import train_model, train_model_overfit
+from train_boundary import train_model
 
 torch.manual_seed(2)
 

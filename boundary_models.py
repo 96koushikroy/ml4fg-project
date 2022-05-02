@@ -124,7 +124,7 @@ class Anchor_CNN_Stack(nn.Module):
         self.layers = nn.ModuleList()
         for dim, kernel in zip(layer_dims, kernel_sizes):
             layer = nn.Sequential(
-                        nn.Conv1d(in_channels=dim[0], out_channels=dim[1], kernel_size=kernel, dilation=3, padding='same'),
+                        nn.Conv2d(in_channels=dim[0], out_channels=dim[1], kernel_size=kernel, dilation=3, padding='same'),
                         nn.BatchNorm2d(dim[1]),
                         nn.LeakyReLU(0.2),
                         nn.MaxPool2d(kernel_size=(self.stride, 1), stride=(self.stride, 1)),
@@ -135,10 +135,10 @@ class Anchor_CNN_Stack(nn.Module):
     def forward(self, x):
         x = x.unsqueeze(1) #[*, 1, 4k, 5]
         batch_size = x.shape[0]
-        x = self.layer1(x)
         for layer in self.layers:
             x = layer(x)
-        out = x.view(batch_size, -1)
+        # out = x.view(batch_size, -1)
+        out = x
         return out
 
 
@@ -210,7 +210,7 @@ class Anchor_CNN_LSTM(nn.Module):
             out_dim += 800
             
         if use_cnn2:
-            self.cnn_model = Anchor_CNN_Transformer2()
+            self.cnn_model = Anchor_CNN_Transformer()
             out_dim += 1792
         elif use_cnn == True:
             self.cnn_model = Anchor_CNN_Model()

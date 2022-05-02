@@ -27,7 +27,7 @@ TEST_DATASET_LENGTH = 23744
 DATASET_LENGTHS = (TRAIN_DATASET_LENGTH, VAL_DATASET_LENGTH, TEST_DATASET_LENGTH)
 
 config = {
-    "name": "anchor_model_checkpoint_enformer_2.pt",
+    "name": "anchor_model_checkpoint_enformer_pretrained.pt",
     "batch_size": 4,
     "lr": 1e-5,
     "epochs": 15,
@@ -45,7 +45,9 @@ config = {
 
 
 if __name__ == "__main__":
-    model = Anchor_Enformer_Model(dim=192, depth=8, target_length=32, num_downsamples=3)
+    # model = Anchor_Enformer_Model(dim=192, depth=4, target_length=32, num_downsamples=3)
+    # model = Anchor_Enformer_Model(dim=384, depth=8, target_length=64, num_downsamples=3)
+    model = Anchor_Enformer_Model(dim=1536, target_length=16, pretrained=True, freeze_layers=6)
     # model.load_state_dict(torch.load('anchor_model_checkpoint_enformer.pt')['model_state_dict'])
     model, train_accs, val_accs = train_model(model, (train_boundary, train_label), (val_boundary, val_label), DATASET_LENGTHS, config)
 
@@ -53,4 +55,4 @@ if __name__ == "__main__":
         'train_accs': train_accs,
         'val_accs': val_accs,
         'model_state_dict': model.state_dict(),
-    }, "deepmilo_boundary_enformer_2.pt")
+    }, "deepmilo_boundary_enformer_pretrained.pt")

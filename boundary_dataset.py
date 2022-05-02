@@ -69,5 +69,5 @@ class AnchorCollate:
     
     def __call__(self, inp):
         region, rnn_region, label = [x[0] for x in inp], [x[1] for x in inp], [x[2] for x in inp]
-        tokens = self.tokenizer(region, padding="max_length", return_tensors='pt')
+        tokens = self.tokenizer(region, padding="max_length", truncation=True, max_length=4000, return_tensors='pt')
         return tokens, torch.Tensor([0]), torch.Tensor(label)

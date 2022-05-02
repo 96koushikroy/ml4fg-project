@@ -2,6 +2,7 @@ import re
 import torch
 import torch.nn as nn
 import torch.utils.data
+from einops.layers.torch import Rearrange
 from enformer_pytorch import Enformer
 
 from transformers import BertConfig, BertModel, BertForSequenceClassification
@@ -64,8 +65,8 @@ class Anchor_BERT_Model_2(nn.Module):
         super().__init__()
         self.seq_len = 4000
         
-        self.conv_block = Anchor_CNN_Stack(layer_dims=[[5, 256], [256, 512]], kernel_sizes=[17, 5], dropout=dropout)
-        self.conv_block_2 = Anchor_CNN_Stack(layer_dims=[[512, 256], [256, 16]], kernel_sizes=[5, 5], dropout=dropout)
+        self.conv_block = Anchor_CNN_Stack(layer_dims=[[1, 256], [256, 512]], kernel_sizes=[(17, 5), (5, 1)], dropout=dropout)
+        self.conv_block_2 = Anchor_CNN_Stack(layer_dims=[[512, 256], [256, 16]], kernel_sizes=[(5, 1), (5, 1)], dropout=dropout)
         
         configuration = BertConfig(max_position_embeddings=pos_enc_size,
                                    hidden_size=hidden_size,
@@ -85,14 +86,16 @@ class Anchor_BERT_Model_2(nn.Module):
                             nn.Sigmoid()
                         )
         
-    def forward(self, x, x_rnn):
+    def forward(self, x):
         batch_size = x.shape[0]
+        # x = x.view(batch_size, x.shape[2], -1)
         x = self.conv_block(x)
-        x = x.view(batch_size, x.shape[2], -1)
+        # x = x.view(batch_size, x.shape[2], -1)
+        print(x.shape)
         x = self.transformer(inputs_embeds=x).last_hidden_state
-        x = x.view(batch_size, x.shape[2], -1)
+        # x = x.view(batch_size, x.shape[2], -1)
         x = self.conv_block_2(x)
-        x = x.view(batch_size, -1)
+        # x = x.view(batch_size, -1)
 
         predicted_class_id = self.classifier(x)
         return predicted_class_id.view(batch_size, -1)
@@ -123,18 +126,28 @@ class Anchor_BERTXL_Model(nn.Module):
         self.num_chunks = self.seq_len // self.transformer.config.max_position_embeddings
 
         self.transition = nn.Sequential(
-            nn.MaxPool1d(2),
-            nn.Linear(self.transformer.config.hidden_size // 2, 8),
-            nn.MaxPool1d(2)
+            Rearrange('b l c -> b c l'),
+            nn.MaxPool1d(4),
+            Rearrange('b c l -> b l c'),
+            nn.Linear(self.transformer.config.hidden_size, 16),
+            Rearrange('b l c -> b c l'),
+            nn.MaxPool1d(4),
+            Rearrange('b c l -> b l c'),
         )
         
         # self.transformer.config.max_position_embeddings: 512
         self.head = nn.Sequential(
-            nn.Linear(16000, 1024),
+            nn.Linear(3968, 1024),
             nn.BatchNorm1d(1024),
+            nn.LeakyReLU(0.2),
+            nn.Dropout(0.2),
+            
             nn.Linear(1024, 512),
             nn.LeakyReLU(0.2),
-            nn.Linear(512, 2),
+            nn.Dropout(0.2),
+            
+            nn.Linear(512, 1),
+            nn.Sigmoid()
         )
         
     def forward(self, x):
@@ -160,24 +173,41 @@ class Anchor_BERTXL_Model(nn.Module):
             output_chunks.append(trans_out)
         
         output = torch.cat(output_chunks, dim=1).view(batch_size, -1)
-        pred = self.head(output).softmax(dim=1)[:, 1]
+        pred = self.head(output)
         return pred.view(batch_size, -1)
 
 # Enformer Model 
 # The Dimensionality reduction is from 4,000 --> 512 (4x reduction)
 
 class Anchor_Enformer_Model(nn.Module):
-    def __init__(self, dim, depth, target_length, num_downsamples):
+    def __init__(self, dim=192, depth=4, target_length=32, num_downsamples=0, pretrained=False, freeze_layers=0):
         super().__init__()
-        self.enformer = Enformer.from_hparams(
-            dim = dim,
-            depth = depth,
-            heads = 8,
-            output_heads = dict(),
-            target_length = target_length,
-            num_downsamples=num_downsamples,
-            dim_divisible_by = 8
-        )
+        self.freeze_layers = freeze_layers
+        if pretrained:
+            self.enformer = Enformer.from_pretrained('EleutherAI/enformer-preview', target_length = target_length, use_checkpointing = True)
+            for name, param in self.enformer.named_parameters():
+                if name.startswith('stem.'):
+                    param.requires_grad = False
+                elif name.startswith('conv_tower.'):
+                    param.requires_grad = False
+                elif name.startswith('transformer.'):
+                    layer_num = int(re.search('transformer\.(\d+)', name).group(1))
+                    if layer_num <= self.freeze_layers:
+                        param.requires_grad = False
+                    else:
+                        param.requires_grad = True
+
+        else:
+            self.enformer = Enformer.from_hparams(
+                dim = dim,
+                depth = depth,
+                heads = 8,
+                # output_heads = dict(),
+                output_heads = dict(human = 5313, mouse = 1643),
+                target_length = target_length,
+                num_downsamples=num_downsamples,
+                dim_divisible_by = 8
+            )
 
         self.transition = torch.nn.Linear(dim*2, 16)
 
